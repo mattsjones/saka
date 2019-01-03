@@ -4,6 +4,18 @@ export async function getSuggestions([mode, searchString]) {
   return providers[mode](searchString);
 }
 
+async function focusOrCreateTab(url) {
+  const [existingTab] = await browser.tabs.query({ url });
+
+  if (existingTab) {
+    await browser.tabs.update(existingTab.id, { active: true });
+    await browser.windows.update(existingTab.windowId, { focused: true });
+    return;
+  }
+
+  await browser.tabs.create({ url });
+}
+
 export async function activateSuggestion(suggestion) {
   switch (suggestion.type) {
     case 'tab':
@@ -14,10 +26,10 @@ export async function activateSuggestion(suggestion) {
       await browser.sessions.restore(suggestion.sessionId);
       break;
     case 'bookmark':
-      await browser.tabs.create({ url: suggestion.url });
+      await focusOrCreateTab(suggestion.url);
       break;
     case 'history':
-      await browser.tabs.create({ url: suggestion.url });
+      await focusOrCreateTab(suggestion.url);
       break;
     case 'recentlyViewed':
       await activateSuggestion({
@@ -28,7 +40,7 @@ export async function activateSuggestion(suggestion) {
     default:
       console.error(
         `activation not yet implemented for suggestions of type ${
-          suggestion.type
+        suggestion.type
         }`
       );
   }
