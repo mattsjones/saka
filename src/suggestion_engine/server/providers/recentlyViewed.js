@@ -14,7 +14,21 @@ import { allHistorySuggestions as getAllHistoryTabs } from './history.js';
 import { allBookmarkSuggestions as getBookmarkTabs } from './bookmark.js';
 
 function filterUniqueTabs(tabs) {
-  return uniqBy(tabs, ['url', 'title']);
+  return uniqBy(tabs, 'url');
+}
+
+function compareSuggestionsTypes(suggestion1, suggestion2) {
+  const typePreferenceWeight = {
+    tab: 4,
+    closedTab: 3,
+    bookmark: 2,
+    history: 1
+  };
+
+  return (
+    typePreferenceWeight[suggestion2.type] -
+    typePreferenceWeight[suggestion1.type]
+  );
 }
 
 function compareRecentlyViewedSuggestions(suggestion1, suggestion2) {
@@ -57,11 +71,9 @@ async function filteredRecentlyViewedSuggestions(searchString) {
     getAllHistoryTabs(searchString)
   ]);
 
-  const r = flatMap(results, tabs => tabs).map(tab => ({
-    ...tab,
-    originalType: tab.type,
-    type: 'recentlyViewed'
-  }));
+  const r = filterUniqueTabs(
+    flatMap(results, tabs => tabs).sort(compareSuggestionsTypes)
+  );
 
   return r;
 }
