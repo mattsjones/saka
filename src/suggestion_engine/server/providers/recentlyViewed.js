@@ -1,3 +1,6 @@
+import uniqBy from 'lodash/uniqBy';
+import flatMap from 'lodash/flatMap';
+
 import { getFilteredSuggestions } from 'lib/utils.js';
 import tabSuggestions, {
   allTabSuggestions,
@@ -8,49 +11,59 @@ import {
   recentlyClosedTabSuggestions
 } from './closedTab.js';
 import { allHistorySuggestions as getAllHistoryTabs } from './history.js';
+import { allBookmarkSuggestions as getBookmarkTabs } from './bookmark.js';
+
+function filterUniqueTabs(tabs) {
+  return uniqBy(tabs, ['url', 'title']);
+}
 
 function compareRecentlyViewedSuggestions(suggestion1, suggestion2) {
   return suggestion2.lastAccessed - suggestion1.lastAccessed;
 }
 
 async function allRecentlyViewedSuggestions(searchString) {
-  const historyTabs = await getAllHistoryTabs(searchString);
-  let openTabs = null;
-  let closedTabs = null;
+  const tasks = [
+    getAllHistoryTabs(searchString),
+    getBookmarkTabs(searchString)
+  ];
 
   if (SAKA_PLATFORM === 'chrome') {
-    openTabs = await recentVisitedTabSuggestions(searchString);
-    closedTabs = await recentlyClosedTabSuggestions(searchString);
+    tasks.push(recentVisitedTabSuggestions(searchString));
+    tasks.push(recentlyClosedTabSuggestions(searchString));
   } else {
-    openTabs = await tabSuggestions(searchString);
-    closedTabs = await getAllClosedTabs(searchString);
+    tasks.push(tabSuggestions(searchString));
+    tasks.push(getAllClosedTabs(searchString));
   }
 
-  const filteredClosedTabs = closedTabs.filter(tab =>
-    openTabs.every(openTab => openTab.url !== tab.url)
+  const [historyTabs, bookmarkTabs, openTabs, closedTabs] = await Promise.all(
+    tasks
   );
 
-  const filteredHistoryTabs = historyTabs.filter(tab =>
-    [...openTabs, ...filteredClosedTabs].every(
-      openOrClosedTab => openOrClosedTab.url !== tab.url
-    )
-  );
-
-  return [...openTabs, ...filteredClosedTabs, ...filteredHistoryTabs]
+  return filterUniqueTabs([
+    ...openTabs,
+    ...closedTabs,
+    ...bookmarkTabs,
+    ...historyTabs
+  ])
     .map(tab => ({ ...tab, originalType: tab.type, type: 'recentlyViewed' }))
     .sort(compareRecentlyViewedSuggestions);
 }
 
 async function filteredRecentlyViewedSuggestions(searchString) {
-  const tabs = await allTabSuggestions();
-  const closedTabs = await getAllClosedTabs(searchString);
-  const historyTabs = await getAllHistoryTabs(searchString);
+  const results = await Promise.all([
+    allTabSuggestions(),
+    getAllClosedTabs(searchString),
+    getBookmarkTabs(searchString),
+    getAllHistoryTabs(searchString)
+  ]);
 
-  return [
-    ...tabs,
-    ...Object.values(closedTabs),
-    ...Object.values(historyTabs)
-  ].map(tab => ({ ...tab, originalType: tab.type, type: 'recentlyViewed' }));
+  const r = flatMap(results, tabs => tabs).map(tab => ({
+    ...tab,
+    originalType: tab.type,
+    type: 'recentlyViewed'
+  }));
+
+  return r;
 }
 
 async function getFilteredRecentlyViewedSuggestions(searchString) {
@@ -60,19 +73,13 @@ async function getFilteredRecentlyViewedSuggestions(searchString) {
     keys: ['title', 'url']
   });
 
-  return filteredSuggestions.filter(
-    (suggestion, index) =>
-      filteredSuggestions.findIndex(
-        filteredSuggestion =>
-          filteredSuggestion.url === suggestion.url &&
-          filteredSuggestion.title === suggestion.title
-      ) === index
-  );
+  return filteredSuggestions;
 }
 
 export default async function recentlyViewedSuggestions(searchString) {
   if (searchString === '') {
-    return allRecentlyViewedSuggestions(searchString, SAKA_PLATFORM);
+    // return allRecentlyViewedSuggestions(searchString, SAKA_PLATFORM);
+    return [];
   }
 
   return getFilteredRecentlyViewedSuggestions(searchString);

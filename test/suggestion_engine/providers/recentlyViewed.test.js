@@ -94,6 +94,25 @@ describe('server/providers/recentlyViewed ', () => {
         }
       ];
 
+      const bookmarkResults = [
+        {
+          id: 1,
+          url: 'https://github.com/lusakasa/saka',
+          title: 'Saka Github',
+          lastVisitTime: 1524795334,
+          visitCount: 5,
+          typedCount: 10
+        },
+        {
+          id: 3,
+          url: 'https://example.com',
+          title: 'Example',
+          lastVisitTime: 1524794200,
+          visitCount: 1,
+          typedCount: 0
+        }
+      ];
+
       const expectedResult = [
         {
           type: 'recentlyViewed',
@@ -146,12 +165,13 @@ describe('server/providers/recentlyViewed ', () => {
       browser.runtime.getBackgroundPage.returns(trackedHistory);
       browser.sessions.getRecentlyClosed.returns(recentlyClosedResults);
       browser.history.search.returns(historyResults);
+      browser.bookmarks.search.returns(bookmarkResults);
       expect(await recentlyViewedSuggestions(searchString)).toEqual(
         expectedResult
       );
     });
 
-    it('should return matching recently viewed tabs when search string is not empty', async () => {
+    it.only('should return matching recently viewed tabs when search string is not empty', async () => {
       const tabHistory = { tabHistory: [0] };
       const tabResults = [
         {
@@ -202,6 +222,25 @@ describe('server/providers/recentlyViewed ', () => {
       ];
 
       const historyResults = [
+        {
+          id: 1,
+          url: 'https://github.com/lusakasa/saka',
+          title: 'Saka Github',
+          lastVisitTime: 1524795334,
+          visitCount: 5,
+          typedCount: 10
+        },
+        {
+          id: 3,
+          url: 'https://example.com',
+          title: 'Example',
+          lastVisitTime: 1524794200,
+          visitCount: 1,
+          typedCount: 0
+        }
+      ];
+
+      const bookmarkResults = [
         {
           id: 1,
           url: 'https://github.com/lusakasa/saka',
@@ -298,6 +337,7 @@ describe('server/providers/recentlyViewed ', () => {
       browser.runtime.getBackgroundPage.returns(tabHistory);
       browser.sessions.getRecentlyClosed.returns(recentlyClosedResults);
       browser.history.search.returns(historyResults);
+      browser.bookmarks.search.returns(bookmarkResults);
       expect(await recentlyViewedSuggestions(searchString)).toEqual(
         expectedResult
       );
